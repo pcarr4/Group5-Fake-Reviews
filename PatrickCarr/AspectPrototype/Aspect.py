@@ -142,23 +142,6 @@ def setAspects(file):
         index += 1
     return reviews
 
-#vector def vectorize(file):
-#     reviews = file
-#     reviewData = [TaggedDocument(words=reviews,tags=[str(i)]) for i, doc in enumerate(reviews)]
-#     vecModel = Doc2Vec(vector_size=20, min_count=2, epochs=40)
-#     vecModel.build_vocab(reviewData)
-#     vecModel.train(reviewData, total_examples=vecModel.corpus_count,epochs=vecModel.epochs)
-#     #print(reviews[0])
-#     #vectors = [vecModel.infer_vector(str(word)) for word in reviewData]
-#     #vectors = [vecModel.infer_vector(str(reviewData[0]))]
-#     #vectors = [vecModel.infer_vector(reviews)]
-#     vectors = [vecModel.infer_vector(str(word)) for word in reviews]
-#     for i, doc in enumerate(reviewData):
-#         #print("Document", i+1, ":", doc)
-#         #print("Vector:", vectors[i])
-#         #print()
-#     return vectors
-
 #Reference [6]
 def countVectorize(file):
     cv = CountVectorizer()
@@ -209,7 +192,7 @@ def makeEmbeddingMatrix(embedding, dim, wordIndex):
             embeddingMatrix[i] = embeddingVector
     return embeddingMatrix
 
-preprocess = True
+preprocess = False
 if preprocess:
     #filepath = 'C:/Users/patri/cse573/AspectPrototype/reviewContent+metadata100.csv'
     #filepath = 'C:/Users/patri/cse573/AspectPrototype/reviewContent+metadataTest.csv'
@@ -217,19 +200,19 @@ if preprocess:
     #filepath = 'C:/Users/patri/cse573/AspectPrototype/reviewContent+metadataBal100.csv'
     #filepath = 'C:/Users/patri/cse573/AspectPrototype/reviewContent+metadataBal1.csv'
     #filepath = 'C:/Users/patri/cse573/AspectPrototype/fake reviews dataset2.csv'
-    #filepath = 'C:/Users/patri/cse573/AspectPrototype/reviewContent+metadata.csv'
-    filepath = 'C:/Users/patri/cse573/AspectPrototype/reviewContent+metadata10k.csv'
+    filepath = 'C:/Users/patri/cse573/AspectPrototype/reviewContent+metadataBalanced.csv'
+    #filepath = 'C:/Users/patri/cse573/AspectPrototype/reviewContent+metadata10k.csv'
     file = pan.read_csv(filepath,header=0, sep=',',encoding="utf8",dtype={'text_': 'string'})
     file['text_']=file['text_'].astype(str)
 
     file['text_'] = file['text_'].apply(preprocessData)
-    file.to_csv('C:/Users/patri/cse573/AspectPrototype/preprocessedData10k.csv', encoding='utf-8', index=False)
+    file.to_csv('C:/Users/patri/cse573/AspectPrototype/preprocessedDataBalanced.csv', encoding='utf-8', index=False)
     print("Done preprocessing")
 else:
-    #filepath = 'C:/Users/patri/cse573/AspectPrototype/preprocessedDataFull.csv'
+    filepath = 'C:/Users/patri/cse573/AspectPrototype/preprocessedDataBalanced.csv'
     #filepath = 'C:/Users/patri/cse573/AspectPrototype/preprocessedData10k.csv'
     #filepath = 'C:/Users/patri/cse573/AspectPrototype/preprocessedData.csv'
-    filepath = 'C:/Users/patri/cse573/AspectPrototype/preprocessedDataBal20k.csv'
+    #filepath = 'C:/Users/patri/cse573/AspectPrototype/preprocessedDataBal20k.csv'
     file = pan.read_csv(filepath,header=0, sep=',',encoding="utf8",dtype={'text_': 'string','label':'float32'})
     file['text_']=file['text_'].astype(str)
     print("Done not preprocessing")
@@ -318,7 +301,7 @@ print("Done classWeight")
 #kernInit = 'glorot_normal'orthogonal
 kernInit = 'orthogonal'
 
-drop = 0.2
+drop = 0.25
 epsil=0.001
 momen=0.99
 weigh=None
@@ -327,32 +310,32 @@ model = Sequential()
 #model.add(Embedding(embedding.shape[0],100,weights=[embedding],input_length=tVectors.shape[1])) #,weights=[embedding]
 model.add(Embedding(embeddingMatrix.shape[0],dim,weights=[embeddingMatrix],input_length=data.shape[1])) #len(wordIndex)+1
 model.add(Conv1D(filters=32, kernel_size=3, input_shape=inputShape[1:],strides=1,kernel_initializer=kernInit,kernel_regularizer=regularizers.l2(0.01))) #kernel_size=3 #, padding="valid" ,kernel_initializer='glorot_normal'
-model.add(Activation('relu'))
-model.add(Dropout(drop))
-model.add(MaxPooling1D(pool_size=2))
 model.add(BatchNormalization(epsilon=epsil, momentum=momen))
+model.add(Activation('relu'))
+#model.add(Dropout(drop))
+model.add(MaxPooling1D(pool_size=2))
 
 model.add(Conv1D(filters=64, kernel_size=3, strides=1,kernel_initializer=kernInit,kernel_regularizer=regularizers.l2(0.01)))#, padding="valid"
-model.add(Activation('relu'))
-model.add(Dropout(drop))
-model.add(MaxPooling1D(pool_size=2))
 model.add(BatchNormalization(epsilon=epsil, momentum=momen))
+model.add(Activation('relu'))
+#model.add(Dropout(drop))
+model.add(MaxPooling1D(pool_size=2))
 
-model.add(Conv1D(filters=128, kernel_size=3,strides=1,kernel_initializer=kernInit,kernel_regularizer=regularizers.l2(0.01))) #, padding="valid"
+model.add(Conv1D(filters=64, kernel_size=3,strides=1,kernel_initializer=kernInit,kernel_regularizer=regularizers.l2(0.01))) #, padding="valid"
+model.add(BatchNormalization(epsilon=epsil, momentum=momen))
 model.add(Activation('relu'))
 model.add(Dropout(drop))
 model.add(MaxPooling1D(pool_size=2))
-model.add(BatchNormalization(epsilon=epsil, momentum=momen))
 
 #Reference [10]
-#model.add(Bidirectional(LSTM(units = 50, dropout=0.25, recurrent_dropout=0.25, input_shape=inputShape[1:],return_sequences=True))) #dropout=0.25, recurrent_dropout=0.25,
+model.add(Bidirectional(LSTM(units = 50, dropout=0.25, recurrent_dropout=0.25, input_shape=inputShape[1:],return_sequences=True))) #dropout=0.25, recurrent_dropout=0.25,
 #model.add(Bidirectional(LSTM(units = 50, dropout=0.25, recurrent_dropout=0.25,return_sequences=True)))
 #model.add(Bidirectional(LSTM(units = 50, dropout=0.25, recurrent_dropout=0.25)))
 drop2 = 0.5
 model.add(Flatten())
-# model.add(Dense(128, activation='relu'))
-# model.add(Dropout(0.25))
-model.add(Dense(64, activation='relu'))
+model.add(Dense(200, activation='relu'))
+model.add(Dropout(drop2))
+model.add(Dense(100, activation='relu'))
 model.add(Dropout(drop2))
 #model.add(Activation('relu'))
 model.add(Dense(1, activation='sigmoid')) 
@@ -368,7 +351,7 @@ model.compile(loss='binary_crossentropy',optimizer=opt,metrics=['accuracy']) #,'
 
 reduceLR=tf.keras.callbacks.ReduceLROnPlateau( monitor="val_loss", factor=0.5, patience=3, min_lr=0.000001, verbose=1, cooldown=0)
 #earlyStopping = EarlyStopping(patience=10)
-model.fit(data,y1,epochs=10, validation_split=0.25,class_weight=classWeight,shuffle = True, callbacks=[reduceLR], batch_size=16) #epochs=40  ,validation_data=(X_val, y_val)
+model.fit(data,y1,epochs=10, validation_split=0.25,class_weight=classWeight,shuffle = True, callbacks=[reduceLR], batch_size=64) #epochs=40  ,validation_data=(X_val, y_val)
 #model.fit(data,y1,epochs=40, validation_split=0.25,class_weight=classWeight,shuffle = True, batch_size=32)
 #loss, acc = model.evaluate(tVectors2,y2)
 model.summary()
